@@ -1,61 +1,50 @@
 import discord
 import os
-import requests
 
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GROQ_KEY = os.getenv("GROQ_KEY")
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 client = discord.Client(intents=intents)
 
-def ask_ai(prompt):
-    url = "https://api.groq.com/openai/v1/chat/completions"
+# einfache Filterliste
+bad_words = ["idiot", "dumm", "opfer", "hurensohn", "arsch"]
 
-    headers = {
-        "Authorization": f"Bearer {GROQ_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "model": "llama-3.1-8b-instant",
-        "messages": [
-            {"role": "system", "content": "Du bist ein hilfreicher deutscher Discord Bot."},
-            {"role": "user", "content": prompt}
-        ]
-    }
-
-    r = requests.post(url, headers=headers, json=data)
-
-    if r.status_code == 200:
-        return r.json()["choices"][0]["message"]["content"]
-    else:
-        print("FEHLER:", r.status_code, r.text)
-        return "❌ KI Fehler"
+BOT_NAME = "ShadowBot"
 
 @client.event
 async def on_ready():
-    print(f"Bot online als {client.user}")
+    print(f"{BOT_NAME} ist online als {client.user}")
 
 @client.event
 async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith("!gpt"):
-        prompt = message.content[5:].strip()
+    content = message.content.lower()
+    author_name = message.author.display_name
 
-        if not prompt:
-            await message.channel.send("Schreib etwas nach !gpt")
-            return
+    # Bot Name zeigen
+    if message.content.startswith("!name"):
+        await message.channel.send(f"Mein Name ist {BOT_NAME}")
+        return
 
-        async with message.channel.typing():
-            answer = ask_ai(prompt)
+    # User Info
+    if message.content.startswith("!user"):
+        await message.channel.send(f"Du bist: {author_name}")
+        return
 
-            if len(answer) > 2000:
-                answer = answer[:1990]
+    # Beleidigung erkennen
+    if any(word in content for word in bad_words):
+        await message.channel.send(
+            f"⚠️ Hey {author_name}, bleib bitte respektvoll im Chat."
+        )
+        return
 
-            await message.channel.send(answer)
+    # kleine Chat-Reaktion
+    if "hi" in content:
+        await message.channel.send(f"Hey {author_name} 👋")
 
-client.run(DISCORD_TOKEN)
+client.run(TOKEN)
