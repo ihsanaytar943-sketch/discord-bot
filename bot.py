@@ -1,19 +1,57 @@
 import discord
 import os
+import requests
 
-TOKEN = os.getenv("DISCORD_TOKEN")
+# ======================
+# TOKENS
+# ======================
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+GROQ_KEY = os.getenv("GROQ_KEY")  # optional für KI
 
+BOT_NAME = "ShadowBot"
+
+# ======================
+# INTENTS
+# ======================
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 client = discord.Client(intents=intents)
 
-# einfache Filterliste
-bad_words = ["idiot", "dumm", "opfer", "hurensohn", "arsch"]
+# ======================
+# KI FUNCTION (optional)
+# ======================
+def ask_ai(prompt):
+    if not GROQ_KEY:
+        return "❌ Kein KI Key gesetzt"
 
-BOT_NAME = "ShadowBot"
+    url = "https://api.groq.com/openai/v1/chat/completions"
 
+    headers = {
+        "Authorization": f"Bearer {GROQ_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {"role": "system", "content": "Du bist ein hilfreicher deutscher Discord Bot."},
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    r = requests.post(url, headers=headers, json=data)
+
+    if r.status_code == 200:
+        return r.json()["choices"][0]["message"]["content"]
+    else:
+        print("KI FEHLER:", r.status_code, r.text)
+        return "❌ KI Fehler"
+
+# ======================
+# EVENTS
+# ======================
 @client.event
 async def on_ready():
     print(f"{BOT_NAME} ist online als {client.user}")
@@ -24,27 +62,50 @@ async def on_message(message):
         return
 
     content = message.content.lower()
-    author_name = message.author.display_name
+    user = message.author.display_name
 
-    # Bot Name zeigen
-    if message.content.startswith("!name"):
-        await message.channel.send(f"Mein Name ist {BOT_NAME}")
+    # ------------------
+    # COMMAND: NAME
+    # ------------------
+    if content.startswith("!name"):
+        await message.channel.send(f"🤖 Mein Name ist {BOT_NAME}")
         return
 
-    # User Info
-    if message.content.startswith("!user"):
-        await message.channel.send(f"Du bist: {author_name}")
+    # ------------------
+    # COMMAND: USER INFO
+    # ------------------
+    if content.startswith("!user"):
+        await message.channel.send(f"👤 Du bist: {user}")
         return
 
-    # Beleidigung erkennen
-    if any(word in content for word in bad_words):
-        await message.channel.send(
-            f"⚠️ Hey {author_name}, bleib bitte respektvoll im Chat."
-        )
+    # ------------------
+    # KI COMMAND
+    # ------------------
+    if content.startswith("!gpt"):
+        prompt = message.content[5:].strip()
+
+        if not prompt:
+            await message.channel.send("❌ Schreib etwas nach !gpt")
+            return
+
+        async with message.channel.typing():
+            answer = ask_ai(prompt)
+
+            if len(answer) > 2000:
+                answer = answer[:1990]
+
+            await message.channel.send(answer)
         return
 
-    # kleine Chat-Reaktion
+    # ------------------
+    # SIMPLE REACTIONS
+    # ------------------
     if "hi" in content:
-        await message.channel.send(f"Hey {author_name} 👋")
+        await message.channel.send(f"👋 Hey {user}")
+        return
 
-client.run(TOKEN)
+    if "lol" in content:
+        await message.channel.send("😂 haha nice")
+        return
+
+client.run(DISCORD_TOKEN)
