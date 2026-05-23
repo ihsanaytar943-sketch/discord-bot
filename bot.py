@@ -10,20 +10,13 @@ ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEIN CHANNEL
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
 
 client = discord.Client(intents=intents)
 
 memory = []
 last_time = {}
 
-PERSONALITY = """
-Du bist ein frecher, sarkastischer Discord AI Bot.
-Du antwortest auf alles im Chat.
-Du darfst leicht frech sein, aber NICHT beleidigend.
-"""
-
-COOLDOWN_SECONDS = 3
+COOLDOWN = 3
 
 def ask_ai(prompt):
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -33,9 +26,11 @@ def ask_ai(prompt):
         "Content-Type": "application/json"
     }
 
-    messages = [{"role": "system", "content": PERSONALITY}]
+    messages = [
+        {"role": "system", "content": "Du bist ein hilfreicher deutscher Discord Bot."}
+    ]
 
-    for m in memory[-8:]:
+    for m in memory[-6:]:
         messages.append(m)
 
     messages.append({"role": "user", "content": prompt})
@@ -47,11 +42,14 @@ def ask_ai(prompt):
 
     r = requests.post(url, headers=headers, json=data)
 
+    # 🔥 DEBUG WICHTIG
+    print("STATUS:", r.status_code)
+    print("TEXT:", r.text)
+
     if r.status_code == 200:
         return r.json()["choices"][0]["message"]["content"]
     else:
-        print("KI FEHLER:", r.status_code, r.text)
-        return "❌ KI Fehler"
+        return "❌ KI Fehler (siehe Logs)"
 
 @client.event
 async def on_ready():
@@ -65,17 +63,17 @@ async def on_message(message):
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
-    # Cooldown pro User
+    # Cooldown
     now = time.time()
     uid = message.author.id
 
     if uid in last_time:
-        if now - last_time[uid] < COOLDOWN_SECONDS:
+        if now - last_time[uid] < COOLDOWN:
             return
 
     last_time[uid] = now
 
-    content = message.content
+    content = message.content.strip()
 
     if len(content) < 2:
         return
@@ -83,6 +81,7 @@ async def on_message(message):
     async with message.channel.typing():
         reply = ask_ai(content)
 
+        # Memory speichern
         memory.append({"role": "user", "content": content})
         memory.append({"role": "assistant", "content": reply})
 
