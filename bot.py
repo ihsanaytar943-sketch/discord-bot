@@ -5,8 +5,7 @@ import requests
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_KEY = os.getenv("GROQ_KEY")
 
-# 👉 HIER CHANNEL ID EINTRAGEN
-ALLOWED_CHANNEL_ID = https://discord.com/channels/1352296004472274985/1507649049602424976
+ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEINE CHANNEL ID
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -26,11 +25,7 @@ def ask_ai(prompt):
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "Du bist ein frecher, sarkastischer Discord Bot. "
-                    "Du roastest Spieler humorvoll, aber beleidigst niemanden ernsthaft, "
-                    "keine Beleidigungen, nur witzige, clevere Antworten."
-                )
+                "content": "Du bist ein frecher, sarkastischer Discord Bot. Du antwortest auf alles im Chat, aber bleibst humorvoll und nicht beleidigend."
             },
             {"role": "user", "content": prompt}
         ]
@@ -56,6 +51,8 @@ async def on_message(message):
     # nur 1 Channel
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
+
+    # KEIN "hi" filter, KEIN anderes if davor!
 
     async with message.channel.typing():
         reply = ask_ai(message.content)
