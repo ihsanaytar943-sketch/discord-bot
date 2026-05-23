@@ -1,7 +1,6 @@
 import discord
 import os
 import requests
-import random
 import time
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -11,7 +10,6 @@ ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEIN CHANNEL
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
 
 client = discord.Client(intents=intents)
 
@@ -19,25 +17,24 @@ client = discord.Client(intents=intents)
 # MEMORY + MOOD
 # ======================
 memory = []
-user_names = {}
-mood = 0  # -5 schlecht, +5 gut
-
+mood = 0
 last_time = {}
+
 COOLDOWN = 3
 
 # ======================
-# MOOD REPLIES
+# MOOD SYSTEM
 # ======================
-def get_mood_style():
+def mood_text():
     if mood <= -2:
-        return "Du bist heute etwas genervt und sarkastisch."
+        return "leicht sarkastisch und genervt"
     elif mood >= 2:
-        return "Du bist heute freundlich und locker."
+        return "freundlich und locker"
     else:
-        return "Du bist neutral und ruhig."
+        return "neutral"
 
 # ======================
-# AI
+# AI FUNCTION (STABLE)
 # ======================
 def ask_ai(prompt, user):
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -49,34 +46,42 @@ def ask_ai(prompt, user):
 
     system = f"""
 Du bist ein Discord AI Bot.
+Stil: {mood_text()}.
 
 Regeln:
-- Du antwortest auf alles.
-- Du merkst dir User Namen.
-- Du bist leicht frech/sarkastisch (kein echtes Beleidigen).
-- Deine Stimmung: {get_mood_style()}
+- Antworte kurz (2–5 Sätze)
+- Kein Abbrechen
+- Kein Spam
+- Leicht frech/sarkastisch aber nicht beleidigend
 """
 
     messages = [{"role": "system", "content": system}]
 
-    # Memory
-    for m in memory[-10:]:
+    for m in memory[-6:]:
         messages.append(m)
 
     messages.append({"role": "user", "content": f"{user}: {prompt}"})
 
     data = {
         "model": "llama-3.1-8b-instant",
-        "messages": messages
+        "messages": messages,
+        "max_tokens": 250,
+        "temperature": 0.8
     }
 
-    r = requests.post(url, headers=headers, json=data)
+    try:
+        r = requests.post(url, headers=headers, json=data, timeout=20)
 
-    if r.status_code == 200:
-        return r.json()["choices"][0]["message"]["content"]
-    else:
-        print("KI FEHLER:", r.status_code, r.text)
-        return "❌ KI Fehler"
+        print("STATUS:", r.status_code)
+        print("TEXT:", r.text)
+
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"]
+        else:
+            return "❌ KI Fehler"
+    except Exception as e:
+        print("ERROR:", e)
+        return "❌ Verbindung Fehler"
 
 # ======================
 # EVENTS
@@ -96,24 +101,20 @@ async def on_message(message):
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
-    user_id = message.author.id
     now = time.time()
+    uid = message.author.id
 
-    # cooldown
-    if user_id in last_time:
-        if now - last_time[user_id] < COOLDOWN:
+    if uid in last_time:
+        if now - last_time[uid] < COOLDOWN:
             return
 
-    last_time[user_id] = now
+    last_time[uid] = now
 
     content = message.content.strip()
     if len(content) < 2:
         return
 
-    # Namen merken
-    user_names[user_id] = message.author.display_name
-
-    # Stimmung leicht verändern
+    # Mood ändern
     if "lol" in content.lower():
         mood += 1
     if "stupid" in content.lower():
@@ -124,15 +125,14 @@ async def on_message(message):
     async with message.channel.typing():
         reply = ask_ai(content, message.author.display_name)
 
-        # Memory speichern
+        # MEMORY
         memory.append({"role": "user", "content": content})
         memory.append({"role": "assistant", "content": reply})
 
-        if len(memory) > 40:
-            memory = memory[-40:]
+        if len(memory) > 30:
+            memory = memory[-30:]
 
-        if len(reply) > 2000:
-            reply = reply[:1990]
+        reply = reply[:1900]  # Discord safe limit
 
         await message.channel.send(reply)
 
