@@ -19,7 +19,7 @@ def ask_ai(prompt):
     }
 
     data = {
-        "model": "llama3-8b-8192",
+        "model": "llama-3.1-8b-instant",
         "messages": [
             {"role": "system", "content": "Du bist ein hilfreicher deutscher Discord Bot."},
             {"role": "user", "content": prompt}
@@ -31,6 +31,7 @@ def ask_ai(prompt):
     if r.status_code == 200:
         return r.json()["choices"][0]["message"]["content"]
     else:
+        print("FEHLER:", r.status_code, r.text)
         return "❌ KI Fehler"
 
 @client.event
@@ -44,6 +45,10 @@ async def on_message(message):
 
     if message.content.startswith("!gpt"):
         prompt = message.content[5:].strip()
+
+        if not prompt:
+            await message.channel.send("Schreib etwas nach !gpt")
+            return
 
         async with message.channel.typing():
             answer = ask_ai(prompt)
