@@ -7,7 +7,7 @@ import time
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_KEY = os.getenv("GROQ_KEY")
 
-ALLOWED_CHANNEL_ID = 123456789012345678  # <- DEIN CHANNEL
+ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEIN CHANNEL
 
 intents = discord.Intents.default()
 intents.message_content = True
