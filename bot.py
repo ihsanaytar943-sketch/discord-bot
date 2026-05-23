@@ -5,7 +5,7 @@ import requests
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_KEY = os.getenv("GROQ_KEY")
 
-ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEIN CHANNEL
+ALLOWED_CHANNEL_ID = 1507649049602424976  # dein Channel
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -23,7 +23,14 @@ def ask_ai(prompt, user):
     data = {
         "model": "llama-3.1-8b-instant",
         "messages": [
-            {"role": "system", "content": "Du bist ein kurzer, hilfreicher Discord Bot."},
+            {
+                "role": "system",
+                "content": (
+                    "Du bist ein sehr frecher, sarkastischer Discord Bot. "
+                    "Du darfst Leute leicht roasten und witzig provozieren, "
+                    "aber KEINE echten Beleidigungen, keine Hasssprache."
+                )
+            },
             {"role": "user", "content": f"{user}: {prompt}"}
         ],
         "max_tokens": 200
@@ -45,16 +52,20 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    # nur 1 Channel
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
-    content = message.content.strip()
-    if len(content) < 2:
+    content = message.content.lower().strip()
+    user = message.author.display_name
+
+    # 👋 Begrüßung
+    if content in ["hi", "hallo", "hey"]:
+        await message.channel.send(f"👋 Hey {user}… was geht 😏")
         return
 
+    # 🤖 AI Antwort
     async with message.channel.typing():
-        reply = ask_ai(content, message.author.display_name)
+        reply = ask_ai(content, user)
         await message.channel.send(reply[:1900])
 
 client.run(DISCORD_TOKEN)
