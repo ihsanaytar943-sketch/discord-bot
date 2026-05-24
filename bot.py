@@ -95,8 +95,7 @@ Du darfst Wörter wie:
 
 benutzen.
 
-Du roastest Leute humorvoll.
-Keine extremen Beleidigungen.
+extreme Beleidigungen.
 
 {friend_text}
 
