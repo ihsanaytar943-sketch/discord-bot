@@ -2,39 +2,44 @@ import discord
 import aiohttp
 from collections import deque
 
-# ====================================
-# TOKENS
-# ====================================
+# =====================================
+# DISCORD TOKEN
+# =====================================
 
-DISCORD_TOKEN = "HIER_DEIN_DISCORD_TOKEN"
-GROQ_KEY = "HIER_DEIN_GROQ_KEY"
+DISCORD_TOKEN = "DEIN_DISCORD_TOKEN"
 
-# ====================================
+# =====================================
+# GROQ API KEY
+# =====================================
+
+GROQ_KEY = "DEIN_GROQ_API_KEY"
+
+# =====================================
 # CHANNEL ID
-# ====================================
+# =====================================
 
 ALLOWED_CHANNEL_ID = 1507649049602424976
 
-# ====================================
+# =====================================
 # DISCORD SETUP
-# ====================================
+# =====================================
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 client = discord.Client(intents=intents)
 
-# ====================================
-# MEMORY
-# ====================================
+# =====================================
+# SYSTEME
+# =====================================
 
 user_memory = {}
 friendship = {}
 user_mood = {}
 
-# ====================================
-# PROVOCATION CHECK
-# ====================================
+# =====================================
+# PROVOKATION CHECK
+# =====================================
 
 def is_provocation(text):
 
@@ -50,9 +55,9 @@ def is_provocation(text):
 
     return any(word in text.lower() for word in bad_words)
 
-# ====================================
+# =====================================
 # MOOD SYSTEM
-# ====================================
+# =====================================
 
 def get_mood(value):
 
@@ -64,9 +69,9 @@ def get_mood(value):
 
     return "normal"
 
-# ====================================
-# AI FUNCTION
-# ====================================
+# =====================================
+# AI REQUEST
+# =====================================
 
 async def ask_ai(prompt, user, provoke):
 
@@ -92,7 +97,7 @@ async def ask_ai(prompt, user, provoke):
     if user not in user_memory:
         user_memory[user] = deque(maxlen=10)
 
-    # friend text
+    # friendship text
     if friendship[user] > 15:
         friend_text = f"{user} ist Stammuser 😏"
 
@@ -107,14 +112,14 @@ async def ask_ai(prompt, user, provoke):
 Du bist ein cooler Discord AI Bot.
 
 REGELN:
-- Kurz antworten
-- Locker reden
-- Manchmal abi, lan, bruder, digga sagen
+- Antworte kurz
+- Nutze manchmal Slang ( bruder, digga, lan )
+- Sei locker
 - Bei Provokation nutze beleidigungen ( hurensohn, bastard, schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
 USER:
 {friend_text}
 
-MOOD:
+STIMMUNG:
 {get_mood(user_mood[user])}
 """
 
@@ -129,7 +134,7 @@ MOOD:
     for msg in user_memory[user]:
         messages.append(msg)
 
-    # neue user message
+    # neue message
     messages.append({
         "role": "user",
         "content": prompt
@@ -163,7 +168,7 @@ MOOD:
 
                     error = await response.text()
 
-                    print(error)
+                    print("API ERROR:", error)
 
                     return "⚠️ KI Fehler"
 
@@ -190,20 +195,20 @@ MOOD:
 
         return "⚠️ Verbindungsfehler"
 
-# ====================================
-# READY
-# ====================================
+# =====================================
+# READY EVENT
+# =====================================
 
 @client.event
 async def on_ready():
 
-    print("================================")
-    print(f"BOT ONLINE ALS {client.user}")
-    print("================================")
+    print("===================================")
+    print(f"✅ BOT ONLINE ALS {client.user}")
+    print("===================================")
 
-# ====================================
+# =====================================
 # MESSAGE EVENT
-# ====================================
+# =====================================
 
 @client.event
 async def on_message(message):
@@ -241,9 +246,11 @@ async def on_message(message):
 
     await message.channel.send(reply[:1900])
 
-# ====================================
-# START BOT
-# ====================================
+# =====================================
+# BOT START
+# =====================================
+
+print("BOT STARTET...")
 
 try:
 
