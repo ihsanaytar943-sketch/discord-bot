@@ -9,7 +9,7 @@ GROQ_KEY = os.getenv("GROQ_KEY")
 # =========================
 # NUR DIESER CHANNEL
 # =========================
-ALLOWED_CHANNEL_ID = 123456789012345678  # <- DEINE CHANNEL ID
+ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEINE CHANNEL ID
 
 intents = discord.Intents.default()
 intents.message_content = True
