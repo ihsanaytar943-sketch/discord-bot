@@ -1,12 +1,15 @@
 import discord
 import os
 import requests
+import random
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_KEY = os.getenv("GROQ_KEY")
 
+# =========================
 # NUR DIESER CHANNEL
-ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEINE CHANNEL ID
+# =========================
+ALLOWED_CHANNEL_ID = 123456789012345678  # <- DEINE CHANNEL ID
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -14,14 +17,60 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # =========================
-# MEMORY
+# MEMORY + FRIENDS + MOOD
 # =========================
 memory = []
+
+friendship = {}
+
+mood = 0
+# -5 = genervt
+#  0 = normal
+# +5 = gute laune
+
+# =========================
+# MOOD TEXT
+# =========================
+def get_mood():
+    global mood
+
+    if mood <= -2:
+        return "Du bist genervt, frech und sarkastisch."
+    elif mood >= 2:
+        return "Du bist freundlich, lustig und locker."
+    else:
+        return "Du bist normal, leicht frech und entspannt."
 
 # =========================
 # AI FUNCTION
 # =========================
 def ask_ai(prompt, user):
+
+    global mood
+
+    # Freundschaft erhöhen
+    if user not in friendship:
+        friendship[user] = 0
+
+    friendship[user] += 1
+
+    # Stimmung ändern
+    if "lol" in prompt.lower():
+        mood += 1
+
+    if any(x in prompt.lower() for x in ["idiot", "stfu", "dumm"]):
+        mood -= 1
+
+    mood = max(-5, min(5, mood))
+
+    # Freundschaft Text
+    if friendship[user] > 15:
+        friend_text = f"{user} ist einer deiner Lieblingsuser."
+    elif friendship[user] > 5:
+        friend_text = f"Du kennst {user} schon gut."
+    else:
+        friend_text = f"Du kennst {user} noch nicht so lange."
+
     url = "https://api.groq.com/openai/v1/chat/completions"
 
     headers = {
@@ -29,21 +78,40 @@ def ask_ai(prompt, user):
         "Content-Type": "application/json"
     }
 
-    system_message = {
-        "role": "system",
-        "content": (
-            "Du bist ein frecher deutscher Discord Bot mit türkischem Slang. "
-            "Du antwortest lustig, locker und manchmal leicht provozierend. "
-            "Du darfst Wörter wie 'manyak', 'ayri', 'pic', 'lan', 'abi' benutzen, "
-            "aber bleib humorvoll und nicht extrem beleidigend. "
-            "Du verhältst dich wie ein lustiger Freund aus Discord Calls. "
-            "Du merkst dir Gespräche und Namen."
-        )
-    }
+    system_text = f"""
+Du bist ein frecher deutscher Discord Bot mit türkischem Slang.
 
-    messages = [system_message]
+Du darfst Wörter wie:
+- abi
+- lan
+- manyak
+- ayri
+- pic
+- hurensohn
+- schwanz
+- hundesohn
+- wixxer
+- bastard
 
-    # MEMORY (letzte Nachrichten)
+benutzen.
+
+Du roastest Leute humorvoll.
+Keine extremen Beleidigungen.
+
+{friend_text}
+
+Deine aktuelle Stimmung:
+{get_mood()}
+"""
+
+    messages = [
+        {
+            "role": "system",
+            "content": system_text
+        }
+    ]
+
+    # MEMORY
     for m in memory[-10:]:
         messages.append(m)
 
@@ -92,15 +160,15 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    # Nur 1 Channel
+    # Nur EIN Channel
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
-    content = message.content.lower().strip()
+    content = message.content.strip()
     user = message.author.display_name
 
     # Begrüßung
-    if content in ["hi", "hallo", "hey", "selam"]:
+    if content.lower() in ["hi", "hallo", "hey", "selam"]:
         await message.channel.send(
             f"👋 Selam {user} lan 😏"
         )
@@ -122,7 +190,7 @@ async def on_message(message):
             "content": reply
         })
 
-        # Nicht zu groß werden lassen
+        # MEMORY LIMIT
         if len(memory) > 20:
             memory[:] = memory[-20:]
 
