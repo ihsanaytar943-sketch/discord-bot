@@ -6,9 +6,9 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_KEY = os.getenv("GROQ_KEY")
 
 # =========================
-# NUR DIESER CHANNEL
+# NUR EIN CHANNEL
 # =========================
-ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEINE CHANNEL ID
+ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEIN CHANNEL
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -16,34 +16,38 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # =========================
-# MEMORY + FRIENDS + MOOD
+# MEMORY / FRIENDS / MOOD
 # =========================
 memory = []
 friendship = {}
 mood = 0
 
 # =========================
-# MOOD
+# PROVOCATION CHECK
+# =========================
+def is_provocation(text):
+    bad_words = ["idiot", "dumm", "stupid", "stfu", "opfer", "trash", "noob"]
+    return any(word in text.lower() for word in bad_words)
+
+# =========================
+# MOOD TEXT
 # =========================
 def get_mood():
-
-    global mood
-
     if mood <= -2:
-        return "Du bist genervt und sarkastisch."
+        return "genervt und leicht sarkastisch"
     elif mood >= 2:
-        return "Du bist lustig und freundlich."
+        return "locker und freundlich"
     else:
-        return "Du bist locker und leicht frech."
+        return "normal und entspannt"
 
 # =========================
 # AI FUNCTION
 # =========================
-def ask_ai(prompt, user):
+def ask_ai(prompt, user, provoke):
 
     global mood
 
-    # Freundschaft
+    # Freundschaft System
     if user not in friendship:
         friendship[user] = 0
 
@@ -53,18 +57,18 @@ def ask_ai(prompt, user):
     if "lol" in prompt.lower():
         mood += 1
 
-    if any(x in prompt.lower() for x in ["idiot", "dumm", "stfu"]):
+    if provoke:
         mood -= 1
 
     mood = max(-5, min(5, mood))
 
     # Freundschaft Text
     if friendship[user] > 15:
-        friend_text = f"{user} ist einer deiner Lieblingsuser."
+        friend_text = f"{user} ist ein Stammuser 😏"
     elif friendship[user] > 5:
-        friend_text = f"Du kennst {user} gut."
+        friend_text = f"Du kennst {user} gut"
     else:
-        friend_text = f"Du kennst {user} noch nicht lange."
+        friend_text = f"Neuer User: {user}"
 
     url = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -74,42 +78,26 @@ def ask_ai(prompt, user):
     }
 
     system_text = f"""
-Du bist ein frecher deutscher Discord Bot mit türkischem Slang.
+Du bist ein Discord AI Bot.
 
-Du darfst Wörter benutzen wie:
-- ayri
-- pic
-- hurensohn
-- schwanzlutscher
-- hundesohn
-- schlampe
-- hurentochter
-- schwuchtel
-- kahba
-- ich ficke deine mutter
+REGELN:
+- Antworte kurz (1–2 Sätze)
+- Nutze manchmal türkischen Slang ( pic, manyak, ayri, hurensohn, schwanzlutscher, schlampe, hurentochter, hure, kahba, ayrifick, deine mutter )
+- Sei freundlich zu normalen Usern
+- Nur wenn jemand dich beleidigt, wirst du frech oder roastig
 
-Du roastest Leute normal.
-Beleidige jeden die nicht mags extrem
-
+User Status:
 {friend_text}
 
-Deine Stimmung:
+Stimmung:
 {get_mood()}
-
-WICHTIG:
-- Antworte immer kurz.
-- Maximal 1-2 kurze Sätze.
-- Schreib wie ein echter Discord User.
 """
 
-    messages = [
-        {
-            "role": "system",
-            "content": system_text
-        }
-    ]
+    if provoke:
+        system_text += "\nDer User hat dich provoziert, du darfst jetzt frecher reagieren."
 
-    # MEMORY
+    messages = [{"role": "system", "content": system_text}]
+
     for m in memory[-10:]:
         messages.append(m)
 
@@ -121,17 +109,12 @@ WICHTIG:
     data = {
         "model": "llama-3.1-8b-instant",
         "messages": messages,
-        "max_tokens": 40,
+        "max_tokens": 60,
         "temperature": 0.9
     }
 
     try:
-        r = requests.post(
-            url,
-            headers=headers,
-            json=data,
-            timeout=20
-        )
+        r = requests.post(url, headers=headers, json=data, timeout=20)
 
         print("STATUS:", r.status_code)
 
@@ -155,10 +138,12 @@ async def on_ready():
 @client.event
 async def on_message(message):
 
+    global mood
+
     if message.author == client.user:
         return
 
-    # Nur EIN Channel
+    # nur 1 Channel
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
@@ -167,34 +152,22 @@ async def on_message(message):
 
     # Begrüßung
     if content.lower() in ["hi", "hallo", "hey", "selam"]:
-        await message.channel.send(
-            f"👋 Selam {user} lan 😏"
-        )
+        await message.channel.send(f"👋 Selam {user} lan 😏")
         return
 
-    # KI Antwort
+    provoke = is_provocation(content)
+
     async with message.channel.typing():
 
-        reply = ask_ai(content, user)
+        reply = ask_ai(content, user, provoke)
 
         # MEMORY
-        memory.append({
-            "role": "user",
-            "content": f"{user}: {content}"
-        })
+        memory.append({"role": "user", "content": f"{user}: {content}"})
+        memory.append({"role": "assistant", "content": reply})
 
-        memory.append({
-            "role": "assistant",
-            "content": reply
-        })
-
-        # MEMORY LIMIT
         if len(memory) > 20:
             memory[:] = memory[-20:]
 
-        # Discord Limit
-        reply = reply[:1900]
-
-        await message.channel.send(reply)
+        await message.channel.send(reply[:1900])
 
 client.run(DISCORD_TOKEN)
