@@ -18,7 +18,7 @@ GROQ_KEY = "DEIN_GROQ_API_KEY"
 # CHANNEL ID
 # =====================================
 
-ALLOWED_CHANNEL_ID = 1507649049602424976
+ALLOWED_CHANNEL_ID = 123456789012345678
 
 # =====================================
 # DISCORD SETUP
@@ -30,7 +30,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # =====================================
-# SYSTEME
+# MEMORY SYSTEME
 # =====================================
 
 user_memory = {}
@@ -44,13 +44,12 @@ user_mood = {}
 def is_provocation(text):
 
     bad_words = [
-       "hund",
-        "bastard",
-        "lutsch mein fettern schwanz",
-        "hurensohn",
-        "kahba",
-        "hure",
-        "schlampe"
+        "idiot",
+        "dumm",
+        "stfu",
+        "opfer",
+        "trash",
+        "noob"
     ]
 
     return any(word in text.lower() for word in bad_words)
@@ -70,18 +69,18 @@ def get_mood(value):
     return "normal"
 
 # =====================================
-# AI REQUEST
+# AI FUNKTION
 # =====================================
 
 async def ask_ai(prompt, user, provoke):
 
-    # friendship
+    # friendship system
     if user not in friendship:
         friendship[user] = 0
 
     friendship[user] += 1
 
-    # mood
+    # mood system
     if user not in user_mood:
         user_mood[user] = 0
 
@@ -113,9 +112,11 @@ Du bist ein cooler Discord AI Bot.
 
 REGELN:
 - Antworte kurz
-- Nutze manchmal Slang ( bruder, digga, lan )
+- Nutze manchmal Slang wie abi, lan usw.
 - Sei locker
-- Bei Provokation nutze beleidigungen ( hurensohn, bastard, schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
+- Keine krassen Beleidigungen
+- Bei Provokation leicht frech
+
 USER:
 {friend_text}
 
@@ -134,7 +135,7 @@ STIMMUNG:
     for msg in user_memory[user]:
         messages.append(msg)
 
-    # neue message
+    # neue user message
     messages.append({
         "role": "user",
         "content": prompt
@@ -247,7 +248,7 @@ async def on_message(message):
     await message.channel.send(reply[:1900])
 
 # =====================================
-# BOT START
+# START BOT
 # =====================================
 
 print("BOT STARTET...")
