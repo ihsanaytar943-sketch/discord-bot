@@ -2,40 +2,44 @@ import discord
 import aiohttp
 from collections import deque
 
-# =========================
-# CONFIG
-# =========================
+# ====================================
+# TOKENS
+# ====================================
 
-DISCORD_TOKEN = "MTUwNzE4NTU4ODg0NTk0MDczNg.GzKX-e.1a-l0L-kYQzk1SltnGfTGfg32w0aW9BK7tRZzA"
-GROQ_KEY = "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"
+DISCORD_TOKEN = "HIER_DEIN_DISCORD_TOKEN"
+GROQ_KEY = "HIER_DEIN_GROQ_KEY"
 
-ALLOWED_CHANNEL_ID = 1507649049602424976  # HIER DEINE CHANNEL ID
+# ====================================
+# CHANNEL ID
+# ====================================
 
-# =========================
+ALLOWED_CHANNEL_ID = 1507649049602424976
+
+# ====================================
 # DISCORD SETUP
-# =========================
+# ====================================
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 client = discord.Client(intents=intents)
 
-# =========================
-# MEMORY / STATE
-# =========================
+# ====================================
+# MEMORY
+# ====================================
 
 user_memory = {}
 friendship = {}
 user_mood = {}
 
-# =========================
+# ====================================
 # PROVOCATION CHECK
-# =========================
+# ====================================
 
 def is_provocation(text):
 
     bad_words = [
-        "hund",
+       "hund",
         "bastard",
         "lutsch mein fettern schwanz",
         "hurensohn",
@@ -46,33 +50,33 @@ def is_provocation(text):
 
     return any(word in text.lower() for word in bad_words)
 
-# =========================
+# ====================================
 # MOOD SYSTEM
-# =========================
+# ====================================
 
-def get_mood(mood):
+def get_mood(value):
 
-    if mood <= -2:
-        return "genervt und leicht sarkastisch"
+    if value <= -2:
+        return "genervt"
 
-    elif mood >= 2:
-        return "locker und freundlich"
+    elif value >= 2:
+        return "freundlich"
 
-    return "normal und entspannt"
+    return "normal"
 
-# =========================
+# ====================================
 # AI FUNCTION
-# =========================
+# ====================================
 
 async def ask_ai(prompt, user, provoke):
 
-    # friendship system
+    # friendship
     if user not in friendship:
         friendship[user] = 0
 
     friendship[user] += 1
 
-    # mood system
+    # mood
     if user not in user_mood:
         user_mood[user] = 0
 
@@ -84,13 +88,13 @@ async def ask_ai(prompt, user, provoke):
 
     user_mood[user] = max(-5, min(5, user_mood[user]))
 
-    # user memory
+    # memory
     if user not in user_memory:
         user_memory[user] = deque(maxlen=10)
 
-    # friendship text
+    # friend text
     if friendship[user] > 15:
-        friend_text = f"{user} ist ein Stammuser 😏"
+        friend_text = f"{user} ist Stammuser 😏"
 
     elif friendship[user] > 5:
         friend_text = f"Du kennst {user} gut"
@@ -99,26 +103,25 @@ async def ask_ai(prompt, user, provoke):
         friend_text = f"Neuer User: {user}"
 
     # system prompt
-    system_text = f"""
+    system_prompt = f"""
 Du bist ein cooler Discord AI Bot.
 
 REGELN:
-- Antworte kurz
-- Nutze manchmal Slang wie ( abi, lan, digga )
-- Sei locker
+- Kurz antworten
+- Locker reden
+- Manchmal abi, lan, bruder, digga sagen
 - Bei Provokation nutze beleidigungen ( hurensohn, bastard, schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
-
 USER:
 {friend_text}
 
-STIMMUNG:
+MOOD:
 {get_mood(user_mood[user])}
 """
 
     messages = [
         {
             "role": "system",
-            "content": system_text
+            "content": system_prompt
         }
     ]
 
@@ -158,16 +161,17 @@ STIMMUNG:
 
                 if response.status != 200:
 
-                    error_text = await response.text()
-                    print("ERROR:", error_text)
+                    error = await response.text()
 
-                    return "⚠️ KI gerade nicht erreichbar"
+                    print(error)
+
+                    return "⚠️ KI Fehler"
 
                 data = await response.json()
 
                 reply = data["choices"][0]["message"]["content"]
 
-                # memory speichern
+                # speichern
                 user_memory[user].append({
                     "role": "user",
                     "content": prompt
@@ -182,24 +186,30 @@ STIMMUNG:
 
     except Exception as e:
 
-        print("EXCEPTION:", e)
+        print("FEHLER:", e)
 
-        return "⚠️ Fehler beim Verbinden"
+        return "⚠️ Verbindungsfehler"
 
-# =========================
-# EVENTS
-# =========================
+# ====================================
+# READY
+# ====================================
 
 @client.event
 async def on_ready():
 
-    print(f"✅ Bot online als {client.user}")
+    print("================================")
+    print(f"BOT ONLINE ALS {client.user}")
+    print("================================")
+
+# ====================================
+# MESSAGE EVENT
+# ====================================
 
 @client.event
 async def on_message(message):
 
-    # bot ignorieren
-    if message.author == client.user:
+    # bots ignorieren
+    if message.author.bot:
         return
 
     # falscher channel
@@ -211,7 +221,7 @@ async def on_message(message):
     user = message.author.display_name
 
     # greetings
-    if content.lower() in ["hi", "hallo", "hey", "selam"]:
+    if content.lower() in ["hi", "hey", "hallo", "selam"]:
 
         await message.channel.send(
             f"👋 Selam {user} lan 😏"
@@ -231,8 +241,14 @@ async def on_message(message):
 
     await message.channel.send(reply[:1900])
 
-# =========================
+# ====================================
 # START BOT
-# =========================
+# ====================================
 
-client.run(DISCORD_TOKEN)
+try:
+
+    client.run(DISCORD_TOKEN)
+
+except Exception as e:
+
+    print("BOT CRASH:", e)
