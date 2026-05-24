@@ -1,5 +1,4 @@
 import discord
-import os
 import aiohttp
 from collections import deque
 
@@ -7,10 +6,10 @@ from collections import deque
 # CONFIG
 # =========================
 
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GROQ_KEY = os.getenv("GROQ_KEY")
+DISCORD_TOKEN = "DEIN_DISCORD_TOKEN"
+GROQ_KEY = "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"
 
-ALLOWED_CHANNEL_ID = 1507649049602424976  # DEIN CHANNEL ID
+ALLOWED_CHANNEL_ID = 1507649049602424976  # HIER DEINE CHANNEL ID
 
 # =========================
 # DISCORD SETUP
@@ -34,6 +33,7 @@ user_mood = {}
 # =========================
 
 def is_provocation(text):
+
     bad_words = [
         "hund",
         "bastard",
@@ -66,9 +66,6 @@ def get_mood(mood):
 
 async def ask_ai(prompt, user, provoke):
 
-    if GROQ_KEY is None:
-        return "❌ Kein GROQ API Key gesetzt"
-
     # friendship system
     if user not in friendship:
         friendship[user] = 0
@@ -87,7 +84,7 @@ async def ask_ai(prompt, user, provoke):
 
     user_mood[user] = max(-5, min(5, user_mood[user]))
 
-    # memory per user
+    # user memory
     if user not in user_memory:
         user_memory[user] = deque(maxlen=10)
 
@@ -107,7 +104,7 @@ Du bist ein cooler Discord AI Bot.
 
 REGELN:
 - Antworte kurz
-- Nutze manchmal Slang wie bruder, usw.
+- Nutze manchmal Slang wie ( abi, lan, digga )
 - Sei locker
 - Bei Provokation nutze beleidigungen ( hurensohn, bastard, schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
 
@@ -118,7 +115,6 @@ STIMMUNG:
 {get_mood(user_mood[user])}
 """
 
-    # messages
     messages = [
         {
             "role": "system",
@@ -136,7 +132,6 @@ STIMMUNG:
         "content": prompt
     })
 
-    # request data
     payload = {
         "model": "llama-3.1-8b-instant",
         "messages": messages,
@@ -200,14 +195,14 @@ async def on_ready():
 
     print(f"✅ Bot online als {client.user}")
 
-    print("GROQ KEY:", GROQ_KEY)
-
 @client.event
 async def on_message(message):
 
+    # bot ignorieren
     if message.author == client.user:
         return
 
+    # falscher channel
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
