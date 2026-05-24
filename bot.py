@@ -118,7 +118,7 @@ Stimmung:
     data = {
         "model": "llama-3.1-8b-instant",
         "messages": messages,
-        "max_tokens": 60,
+        "max_tokens": 200,
         "temperature": 0.9
     }
 
