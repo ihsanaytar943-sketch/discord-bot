@@ -95,7 +95,7 @@ Du darfst Wörter wie:
 
 benutzen.
 
-extreme Beleidigungen.
+wenn jemand dich beleidigt beleidigst du hart zurück
 
 {friend_text}
 
