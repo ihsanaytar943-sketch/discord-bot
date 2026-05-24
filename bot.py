@@ -8,7 +8,7 @@ GROQ_KEY = os.getenv("GROQ_KEY")
 # =========================
 # NUR EIN CHANNEL
 # =========================
-ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEIN CHANNEL
+ALLOWED_CHANNEL_ID = 1507649049602424976
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -26,7 +26,14 @@ mood = 0
 # PROVOCATION CHECK
 # =========================
 def is_provocation(text):
-    bad_words = ["hund", "bastard", "lutsch mein fettern schwanz", "hurensohn", "kahba","hure","schlampe"]
+    bad_words = [
+        "hund",
+        "bastard",
+        "hurensohn",
+        "kahba",
+        "hure",
+        "schlampe"
+    ]
     return any(word in text.lower() for word in bad_words)
 
 # =========================
@@ -47,13 +54,11 @@ def ask_ai(prompt, user, provoke):
 
     global mood
 
-    # Freundschaft System
     if user not in friendship:
         friendship[user] = 0
 
     friendship[user] += 1
 
-    # Stimmung ändern
     if "lol" in prompt.lower():
         mood += 1
 
@@ -62,7 +67,6 @@ def ask_ai(prompt, user, provoke):
 
     mood = max(-5, min(5, mood))
 
-    # Freundschaft Text
     if friendship[user] > 15:
         friend_text = f"{user} ist ein Stammuser 😏"
     elif friendship[user] > 5:
@@ -78,13 +82,17 @@ def ask_ai(prompt, user, provoke):
     }
 
     system_text = f"""
-Du bist ein Discord AI Bot.
+Du bist Abu Olaf.
 
 REGELN:
-- Antworte kurz (1–2 Sätze)
-- Nutze manchmal türkischen Slang (bruder, digga, lan,)
+- Dein Name ist Abu Olaf.
+- Wenn jemand fragt wer du bist, sag: "Ich bin Abu Olaf lan 😏"
+- Antworte kurz (1–3 Sätze)
+- Nutze manchmal türkischen Slang (bruder, digga, lan)
+- Sei locker und lustig
 - Sei freundlich zu normalen Usern
 - Bei Provokation nutze beleidigungen ( hurensohn, bastard, schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
+
 User Status:
 {friend_text}
 
@@ -93,7 +101,7 @@ Stimmung:
 """
 
     if provoke:
-        system_text += "\nDer User hat dich provoziert, du darfst jetzt frecher reagieren."
+        system_text += "\nDer User hat dich provoziert, du darfst etwas frecher reagieren."
 
     messages = [{"role": "system", "content": system_text}]
 
@@ -113,7 +121,12 @@ Stimmung:
     }
 
     try:
-        r = requests.post(url, headers=headers, json=data, timeout=20)
+        r = requests.post(
+            url,
+            headers=headers,
+            json=data,
+            timeout=20
+        )
 
         print("STATUS:", r.status_code)
 
@@ -132,26 +145,37 @@ Stimmung:
 # =========================
 @client.event
 async def on_ready():
-    print(f"Bot online als {client.user}")
+    print(f"Abu Olaf ist online als {client.user}")
 
 @client.event
 async def on_message(message):
 
-    global mood
-
     if message.author == client.user:
         return
 
-    # nur 1 Channel
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
     content = message.content.strip()
     user = message.author.display_name
 
+    # Name Fragen
+    if content.lower() in [
+        "wer bist du",
+        "wie heißt du",
+        "dein name",
+        "wer bistn du"
+    ]:
+        await message.channel.send("Ich bin Abu Olaf lan 😏")
+        return
+
     # Begrüßung
     if content.lower() in ["hi", "hallo", "hey", "selam"]:
-        await message.channel.send(f"👋 Selam {user} lan 😏")
+        await message.channel.send(f"👋 Selam {user}, ich bin Abu Olaf lan 😏")
+        return
+
+    # Nur reagieren wenn Abu Olaf erwähnt wird
+    if "abu olaf" not in content.lower():
         return
 
     provoke = is_provocation(content)
@@ -160,9 +184,15 @@ async def on_message(message):
 
         reply = ask_ai(content, user, provoke)
 
-        # MEMORY
-        memory.append({"role": "user", "content": f"{user}: {content}"})
-        memory.append({"role": "assistant", "content": reply})
+        memory.append({
+            "role": "user",
+            "content": f"{user}: {content}"
+        })
+
+        memory.append({
+            "role": "assistant",
+            "content": reply
+        })
 
         if len(memory) > 20:
             memory[:] = memory[-20:]
