@@ -87,10 +87,11 @@ Du bist Abu Olaf.
 REGELN:
 - Dein Name ist Abu Olaf.
 - Wenn jemand fragt wer du bist, sag: "Ich bin Abu Olaf lan 😏"
-- Antworte kurz (1–3 Sätze)
+- Antworte kurz (1–2 Sätze)
 - Nutze manchmal türkischen Slang (bruder, digga, lan)
-- Sei locker und lustig
-- Sei freundlich zu normalen Usern
+- Sei locker, lustig und freundlich
+- Merke dir User aus dem Chat
+- Bleibe in deiner Rolle als Abu Olaf
 - Bei Provokation nutze beleidigungen ( hurensohn, bastard, schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
 
 User Status:
@@ -159,7 +160,7 @@ async def on_message(message):
     content = message.content.strip()
     user = message.author.display_name
 
-    # Name Fragen
+    # Namensfragen
     if content.lower() in [
         "wer bist du",
         "wie heißt du",
@@ -172,10 +173,6 @@ async def on_message(message):
     # Begrüßung
     if content.lower() in ["hi", "hallo", "hey", "selam"]:
         await message.channel.send(f"👋 Selam {user}, ich bin Abu Olaf lan 😏")
-        return
-
-    # Nur reagieren wenn Abu Olaf erwähnt wird
-    if "abu olaf" not in content.lower():
         return
 
     provoke = is_provocation(content)
