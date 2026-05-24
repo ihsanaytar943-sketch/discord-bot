@@ -7,7 +7,7 @@ from collections import deque
 # =========================
 
 DISCORD_TOKEN = "DEIN_DISCORD_TOKEN"
-GROQ_KEY = "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"
+GROQ_KEY = "DEIN_GROQ_API_KEY"
 
 ALLOWED_CHANNEL_ID = 1507649049602424976  # HIER DEINE CHANNEL ID
 
