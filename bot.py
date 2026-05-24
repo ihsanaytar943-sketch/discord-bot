@@ -14,6 +14,11 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 # =========================
+# MEMORY
+# =========================
+memory = []
+
+# =========================
 # AI FUNCTION
 # =========================
 def ask_ai(prompt, user):
@@ -24,24 +29,32 @@ def ask_ai(prompt, user):
         "Content-Type": "application/json"
     }
 
+    system_message = {
+        "role": "system",
+        "content": (
+            "Du bist ein frecher deutscher Discord Bot mit türkischem Slang. "
+            "Du antwortest lustig, locker und manchmal leicht provozierend. "
+            "Du darfst Wörter wie 'manyak', 'ayri', 'pic', 'lan', 'abi' benutzen, "
+            "aber bleib humorvoll und nicht extrem beleidigend. "
+            "Du verhältst dich wie ein lustiger Freund aus Discord Calls. "
+            "Du merkst dir Gespräche und Namen."
+        )
+    }
+
+    messages = [system_message]
+
+    # MEMORY (letzte Nachrichten)
+    for m in memory[-10:]:
+        messages.append(m)
+
+    messages.append({
+        "role": "user",
+        "content": f"{user}: {prompt}"
+    })
+
     data = {
         "model": "llama-3.1-8b-instant",
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "Du bist ein frecher deutscher Discord Bot mit türkischem Slang. "
-                    "Du antwortest lustig, locker und manchmal leicht provozierend. "
-                    "Du darfst Wörter wie 'manyak', 'ayri', 'pic', 'lan', 'abi' benutzen, "
-                    "aber bleib humorvoll und nicht extrem beleidigend. "
-                    "Du verhältst dich wie ein lustiger Freund aus Discord Calls."
-                )
-            },
-            {
-                "role": "user",
-                "content": f"{user}: {prompt}"
-            }
-        ],
+        "messages": messages,
         "max_tokens": 200,
         "temperature": 0.9
     }
@@ -55,11 +68,11 @@ def ask_ai(prompt, user):
         )
 
         print("STATUS:", r.status_code)
-        print("TEXT:", r.text)
 
         if r.status_code == 200:
             return r.json()["choices"][0]["message"]["content"]
         else:
+            print(r.text)
             return "❌ KI Fehler"
 
     except Exception as e:
@@ -76,11 +89,10 @@ async def on_ready():
 @client.event
 async def on_message(message):
 
-    # Bot ignoriert sich selbst
     if message.author == client.user:
         return
 
-    # Nur EIN Channel erlaubt
+    # Nur 1 Channel
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
@@ -98,6 +110,21 @@ async def on_message(message):
     async with message.channel.typing():
 
         reply = ask_ai(content, user)
+
+        # MEMORY SPEICHERN
+        memory.append({
+            "role": "user",
+            "content": f"{user}: {content}"
+        })
+
+        memory.append({
+            "role": "assistant",
+            "content": reply
+        })
+
+        # Nicht zu groß werden lassen
+        if len(memory) > 20:
+            memory[:] = memory[-20:]
 
         # Discord Limit
         reply = reply[:1900]
