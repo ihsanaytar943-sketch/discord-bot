@@ -6,13 +6,13 @@ from collections import deque
 # DISCORD TOKEN
 # =====================================
 
-DISCORD_TOKEN = "DEIN_DISCORD_TOKEN"
+DISCORD_TOKEN = "MTUwNzYwNjAzODU0NTk1NjkzNQ.Gk47gS.3o3-0uBUPYlrRUYOO7RGQim1z7a7K1FTRSBCSY"
 
 # =====================================
 # GROQ API KEY
 # =====================================
 
-GROQ_KEY = "DEIN_GROQ_API_KEY"
+GROQ_KEY = "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"
 
 # =====================================
 # CHANNEL ID
