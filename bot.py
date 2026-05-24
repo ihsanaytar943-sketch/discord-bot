@@ -5,13 +5,17 @@ import requests
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GROQ_KEY = os.getenv("GROQ_KEY")
 
-ALLOWED_CHANNEL_ID = 1507649049602424976  # dein Channel
+# NUR DIESER CHANNEL
+ALLOWED_CHANNEL_ID = 1507649049602424976  # <- DEINE CHANNEL ID
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 client = discord.Client(intents=intents)
 
+# =========================
+# AI FUNCTION
+# =========================
 def ask_ai(prompt, user):
     url = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -26,46 +30,78 @@ def ask_ai(prompt, user):
             {
                 "role": "system",
                 "content": (
-                    "Du bist ein sehr frecher, sarkastischer Discord Bot. "
-                    "Du darfst Leute leicht roasten und witzig provozieren, "
-                    "aber KEINE echten Beleidigungen, keine Hasssprache."
+                    "Du bist ein frecher deutscher Discord Bot mit türkischem Slang. "
+                    "Du antwortest lustig, locker und manchmal leicht provozierend. "
+                    "Du darfst Wörter wie 'manyak', 'ayri', 'pic', 'lan', 'abi' benutzen, "
+                    "aber bleib humorvoll und nicht extrem beleidigend. "
+                    "Du verhältst dich wie ein lustiger Freund aus Discord Calls."
                 )
             },
-            {"role": "user", "content": f"{user}: {prompt}"}
+            {
+                "role": "user",
+                "content": f"{user}: {prompt}"
+            }
         ],
-        "max_tokens": 200
+        "max_tokens": 200,
+        "temperature": 0.9
     }
 
-    r = requests.post(url, headers=headers, json=data, timeout=20)
+    try:
+        r = requests.post(
+            url,
+            headers=headers,
+            json=data,
+            timeout=20
+        )
 
-    if r.status_code == 200:
-        return r.json()["choices"][0]["message"]["content"]
-    else:
-        return "❌ KI Fehler"
+        print("STATUS:", r.status_code)
+        print("TEXT:", r.text)
 
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"]
+        else:
+            return "❌ KI Fehler"
+
+    except Exception as e:
+        print("ERROR:", e)
+        return "❌ Verbindung Fehler"
+
+# =========================
+# EVENTS
+# =========================
 @client.event
 async def on_ready():
     print(f"Bot online als {client.user}")
 
 @client.event
 async def on_message(message):
+
+    # Bot ignoriert sich selbst
     if message.author == client.user:
         return
 
+    # Nur EIN Channel erlaubt
     if message.channel.id != ALLOWED_CHANNEL_ID:
         return
 
     content = message.content.lower().strip()
     user = message.author.display_name
 
-    # 👋 Begrüßung
-    if content in ["hi", "hallo", "hey"]:
-        await message.channel.send(f"👋 Hey {user}… was geht 😏")
+    # Begrüßung
+    if content in ["hi", "hallo", "hey", "selam"]:
+        await message.channel.send(
+            f"👋 Selam {user} lan 😏"
+        )
         return
 
-    # 🤖 AI Antwort
+    # KI Antwort
     async with message.channel.typing():
+
         reply = ask_ai(content, user)
-        await message.channel.send(reply[:1900])
+
+        # Discord Limit
+        reply = reply[:1900]
+
+        await message.channel.send(reply)
 
 client.run(DISCORD_TOKEN)
