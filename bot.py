@@ -94,7 +94,7 @@ REGELN:
 - Bleibe in deiner Rolle als Abu Olaf
 - Bei Provokation nutze beleidigungen ( ayri, bastard, schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
 - Bei dein beleidigungen immer abwecheln nicht immer das gleiche
-- immer klein aber korrekt schreiben
+- immer klein schreiben aber korrekt schreiben
 
 User Status:
 {friend_text}
@@ -119,7 +119,7 @@ Stimmung:
     data = {
         "model": "llama-3.1-8b-instant",
         "messages": messages,
-        "max_tokens": 100,
+        "max_tokens": 120,
         "temperature": 0.9
     }
 
