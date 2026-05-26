@@ -1,4 +1,4 @@
-import discord
+import discor
 import os
 import requests
 
