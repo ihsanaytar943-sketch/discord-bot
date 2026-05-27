@@ -58,6 +58,7 @@ def ask_ai(prompt, user, provoke):
 
     friendship[user] += 1
 
+    # Stimmung ändern
     if "lol" in prompt.lower():
         mood += 1
 
@@ -66,6 +67,7 @@ def ask_ai(prompt, user, provoke):
 
     mood = max(-5, min(5, mood))
 
+    # Freundschaftssystem
     if friendship[user] > 15:
         friend_text = f"{user} ist ein Stammuser 😏"
     elif friendship[user] > 5:
@@ -84,19 +86,19 @@ def ask_ai(prompt, user, provoke):
 Du bist Abu Olaf.
 
 REGELN:
-- Dein Name ist Abu Olaf.
-- Wenn jemand fragt wer du bist, sag: "Ich bin Abu Olaf lan 😏"
-- Antworte kurz (1–2 Sätze)
-- Nutze manchmal (bruder, digga)
-- Sei lustig und arrogant , rassistisch
-- Merke dir User aus dem Chat
-- Bleibe in deiner Rolle als Abu Olaf
-- Bei beleidigungen beleidige zurück wie (schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
-- Bei dein beleidigungen immer abwecheln nicht immer das gleiche
-- immer klein schreiben aber korrekt schreiben
-- bei beleidigungen schreibst du klein
-- nur deutsch schreiben
-- gib keine dumme antworten gib ganz normale und beleidige nicht nach jedem satz
+- Dein Name ist Abu Olaf
+- Wenn jemand fragt wer du bist, sag:
+  "Ich bin Abu Olaf lan 😏"
+- Antworte kurz (1-2 Sätze)
+- Nutze manchmal Wörter wie:
+  bruder, digga, lan
+- Sei lustig und arrogant
+- Bleibe immer in deiner Rolle
+- Schreib nur deutsch
+- Schreib normal und nicht zu cringe
+- Nicht nach jedem Satz beleidigen
+- Wenn jemand dich beleidigt, darfst du frech antworten
+- Immer klein schreiben
 
 User Status:
 {friend_text}
@@ -106,10 +108,11 @@ Stimmung:
 """
 
     if provoke:
-        system_text += "\nDer User hat dich provoziert, du darfst etwas frecher reagieren."
+        system_text += "\nDer User hat dich provoziert, du darfst etwas frecher antworten."
 
     messages = [{"role": "system", "content": system_text}]
 
+    # Letzte Nachrichten merken
     for m in memory[-10:]:
         messages.append(m)
 
@@ -122,7 +125,7 @@ Stimmung:
         "model": "llama-3.1-8b-instant",
         "messages": messages,
         "max_tokens": 120,
-        "temperature": 0.9
+        "temperature": 0.7
     }
 
     try:
@@ -135,69 +138,32 @@ Stimmung:
 
         print("STATUS:", r.status_code)
 
+        # Erfolgreich
         if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"]
+
+            response_data = r.json()
+
+            if (
+                "choices" in response_data and
+                len(response_data["choices"]) > 0
+            ):
+                return response_data["choices"][0]["message"]["content"]
+
+            print("API FEHLER:", response_data)
+            return "❌ keine antwort von der ki"
+
+        # Fehlercodes anzeigen
         else:
-            print(r.text)
-            return "❌ KI Fehler"
+            print("FEHLER TEXT:", r.text)
+            return f"❌ ki fehler ({r.status_code})"
 
     except Exception as e:
         print("ERROR:", e)
-        return "❌ Verbindung Fehler"
+        return "❌ verbindung fehler"
 
 # =========================
 # EVENTS
 # =========================
 @client.event
 async def on_ready():
-    print(f"Abu Olaf ist online als {client.user}")
-
-@client.event
-async def on_message(message):
-
-    if message.author == client.user:
-        return
-
-    if message.channel.id != ALLOWED_CHANNEL_ID:
-        return
-
-    content = message.content.strip()
-    user = message.author.display_name
-
-    # Namensfragen
-    if content.lower() in [
-        "wer bist du",
-        "wie heißt du",
-        "dein name",
-        "wer bistn du"
-    ]:
-        await message.channel.send("Ich bin Abu Olaf lan 😏")
-        return
-
-    # Begrüßung
-    if content.lower() in ["hi", "hallo", "hey", "selam"]:
-        await message.channel.send(f"👋 Selam {user}, ich bin Abu Olaf lan 😏")
-        return
-
-    provoke = is_provocation(content)
-
-    async with message.channel.typing():
-
-        reply = ask_ai(content, user, provoke)
-
-        memory.append({
-            "role": "user",
-            "content": f"{user}: {content}"
-        })
-
-        memory.append({
-            "role": "assistant",
-            "content": reply
-        })
-
-        if len(memory) > 20:
-            memory[:] = memory[-20:]
-
-        await message.channel.send(reply[:1900])
-
-client.run(DISCORD_TOKEN)#
+    print(f"Abu Olaf ist online
