@@ -1,277 +1,286 @@
-import discord
-import os
-import requests
-import traceback
+const {
+  Client,
+  GatewayIntentBits,
+  SlashCommandBuilder,
+  REST,
+  Routes,
+  AttachmentBuilder,
+  EmbedBuilder
+} = require("discord.js");
+
+const Canvas = require("canvas");
+const GIFEncoder = require("gifencoder");
+const fs = require("fs");
+
+// ================= CONFIG =================
 
-print("BOT STARTET...")
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
 
-# =========================
-# TOKENS
-# =========================
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GROQ_KEY = os.getenv("GROQ_KEY")
+// ================= BOT =================
 
-if not DISCORD_TOKEN:
-    print("❌ DISCORD_TOKEN fehlt")
-    exit()
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
 
-if not GROQ_KEY:
-    print("❌ GROQ_KEY fehlt")
-    exit()
-
-# =========================
-# CHANNEL ID
-# =========================
-ALLOWED_CHANNEL_ID = 1507649049602424976
-
-# =========================
-# DISCORD SETUP
-# =========================
-intents = discord.Intents.default()
-intents.message_content = True
-
-client = discord.Client(intents=intents)
-
-# =========================
-# MEMORY / FRIENDS / MOOD
-# =========================
-memory = []
-friendship = {}
-mood = 0
-
-# =========================
-# PROVOCATION CHECK
-# =========================
-def is_provocation(text):
-
-    bad_words = [
-        "hund",
-        "bastard",
-        "hurensohn",
-        "hure",
-        "schlampe"
-    ]
-
-    return any(word in text.lower() for word in bad_words)
-
-# =========================
-# MOOD SYSTEM
-# =========================
-def get_mood():
-
-    global mood
-
-    if mood <= -2:
-        return "genervt und sarkastisch"
-
-    elif mood >= 2:
-        return "locker und freundlich"
-
-    else:
-        return "normal und entspannt"
-
-# =========================
-# AI FUNCTION
-# =========================
-def ask_ai(prompt, user, provoke):
-
-    global mood
-
-    try:
-
-        # Freundschaftssystem
-        if user not in friendship:
-            friendship[user] = 0
-
-        friendship[user] += 1
-
-        # Stimmung ändern
-        if "lol" in prompt.lower():
-            mood += 1
-
-        if provoke:
-            mood -= 1
-
-        mood = max(-5, min(5, mood))
+// ================= COINSYSTEM =================
 
-        # User Status
-        if friendship[user] > 15:
-            friend_text = f"{user} ist ein Stammuser 😏"
+const coins = new Map();
 
-        elif friendship[user] > 5:
-            friend_text = f"Du kennst {user} gut"
-
-        else:
-            friend_text = f"Neuer User: {user}"
-
-        # SYSTEM PROMPT
-        system_text = f"""
-du bist abu olaf
-
-regeln:
-- wenn jemand fragt wer du bist:
-  "ich bin abu olaf lan 😏"
-- antworte kurz
-- nutze manchmal:
-  bruder, digga
-- leicht arrogant
-- bleib immer in rolle
-- nur deutsch
-- nicht zu cringe
-- immer klein schreiben
-- wenn jeamnd dich beleldigt nutze diese wörter abwechselnt ( hurensohn, schwanz, bastard, schlampe, lutscher, schwanzlutscher, hundesohn, ayri, stirb du schwanz )
-- beleidige dich nicht selbst
-- und bitte hoch deutsch die sätze sollen sinn ergeben
+function getCoins(userId) {
 
-user status:
-{friend_text}
+  if (!coins.has(userId)) {
+    coins.set(userId, 10000);
+  }
 
-stimmung:
-{get_mood()}
-"""
+  return coins.get(userId);
+}
 
-        if provoke:
-            system_text += "\nder user hat dich beleidigt, du darfst frecher antworten"
+function addCoins(userId, amount) {
+  coins.set(userId, getCoins(userId) + amount);
+}
 
-        messages = [
-            {
-                "role": "system",
-                "content": system_text
-            }
-        ]
+// ================= SYMBOLS =================
 
-        # MEMORY
-        for m in memory[-10:]:
-            messages.append(m)
+const symbols = [
+  {
+    symbol: "🍋",
+    multi: 1.5
+  },
+  {
+    symbol: "🍒",
+    multi: 2
+  },
+  {
+    symbol: "🔔",
+    multi: 5
+  },
+  {
+    symbol: "BAR",
+    multi: 10
+  },
+  {
+    symbol: "7️⃣",
+    multi: 25
+  }
+];
 
-        # USER MESSAGE
-        messages.append({
-            "role": "user",
-            "content": f"{user}: {prompt}"
-        })
+function randomSymbol() {
 
-        # API REQUEST
-        url = "https://api.groq.com/openai/v1/chat/completions"
-
-        headers = {
-            "Authorization": f"Bearer {GROQ_KEY}",
-            "Content-Type": "application/json"
-        }
+  return symbols[
+    Math.floor(Math.random() * symbols.length)
+  ];
+}
 
-        data = {
-            "model": "llama-3.1-8b-instant",
-            "messages": messages,
-            "temperature": 0.8,
-            "max_tokens": 120
-        }
+// ================= COMMAND =================
 
-        r = requests.post(
-            url,
-            headers=headers,
-            json=data,
-            timeout=20
-        )
+const commands = [
 
-        print("STATUS:", r.status_code)
+  new SlashCommandBuilder()
+    .setName("slot")
+    .setDescription("🎰 Slot Machine")
+    .addIntegerOption(option =>
+      option
+        .setName("einsatz")
+        .setDescription("Wie viele Coins?")
+        .setRequired(true)
+    )
 
-        # SUCCESS
-        if r.status_code == 200:
+].map(command => command.toJSON());
 
-            response_data = r.json()
+// ================= DEPLOY =================
 
-            print("API OK")
+const rest = new REST({
+  version: "10"
+}).setToken(TOKEN);
 
-            return response_data["choices"][0]["message"]["content"]
+(async () => {
 
-        else:
+  try {
 
-            print("API ERROR:")
-            print(r.text)
+    console.log("Lade Commands...");
 
-            return f"❌ fehler {r.status_code}"
+    await rest.put(
+      Routes.applicationCommands(CLIENT_ID),
+      { body: commands }
+    );
 
-    except Exception as e:
+    console.log("Commands geladen.");
 
-        print("AI ERROR:")
-        traceback.print_exc()
+  } catch (error) {
+    console.error(error);
+  }
 
-        return "❌ ai fehler"
+})();
 
-# =========================
-# READY EVENT
-# =========================
-@client.event
-async def on_ready():
+// ================= READY =================
 
-    print("===================================")
-    print(f"✅ abu olaf online als {client.user}")
-    print("===================================")
+client.once("ready", () => {
+  console.log(`${client.user.tag} online`);
+});
 
-# =========================
-# MESSAGE EVENT
-# =========================
-@client.event
-async def on_message(message):
+// ================= SLOT =================
 
-    global memory
+client.on("interactionCreate", async interaction => {
 
-    try:
+  if (!interaction.isChatInputCommand()) return;
 
-        # Eigene Nachrichten ignorieren
-        if message.author == client.user:
-            return
+  if (interaction.commandName !== "slot") return;
 
-        # Nur EIN Channel
-        if message.channel.id != ALLOWED_CHANNEL_ID:
-            return
+  const bet = interaction.options.getInteger("einsatz");
 
-        user_text = message.content
-        user_name = message.author.name
+  const userId = interaction.user.id;
 
-        print(f"NACHRICHT von {user_name}: {user_text}")
+  // CHECKS
+  if (bet <= 0) {
 
-        provoke = is_provocation(user_text)
+    return interaction.reply({
+      content: "❌ Ungültiger Einsatz.",
+      ephemeral: true
+    });
+  }
 
-        # MEMORY USER
-        memory.append({
-            "role": "user",
-            "content": f"{user_name}: {user_text}"
-        })
+  if (getCoins(userId) < bet) {
 
-        # MAX MEMORY
-        memory = memory[-20:]
+    return interaction.reply({
+      content: "❌ Nicht genug Coins.",
+      ephemeral: true
+    });
+  }
 
-        # AI ANTWORT
-        reply = ask_ai(
-            user_text,
-            user_name,
-            provoke
-        )
+  // COINS ABZIEHEN
+  addCoins(userId, -bet);
 
-        # MEMORY AI
-        memory.append({
-            "role": "assistant",
-            "content": reply
-        })
+  await interaction.deferReply();
 
-        # DISCORD SEND
-        await message.reply(reply)
+  // FINAL SYMBOLS
+  const final1 = randomSymbol();
+  const final2 = randomSymbol();
+  const final3 = randomSymbol();
 
-    except Exception as e:
+  // CANVAS
+  const width = 400;
+  const height = 250;
 
-        print("MESSAGE ERROR:")
-        traceback.print_exc()
+  const canvas = Canvas.createCanvas(width, height);
 
-# =========================
-# BOT START
-# =========================
-try:
+  const ctx = canvas.getContext("2d");
 
-    print("DISCORD LOGIN...")
+  // GIF
+  const encoder = new GIFEncoder(width, height);
 
-    client.run(DISCORD_TOKEN)
+  const path = `slot-${userId}.gif`;
 
-except Exception as e:
+  encoder.createReadStream().pipe(
+    fs.createWriteStream(path)
+  );
 
-    print("BOT CRASH:")
-    traceback.print_exc()
+  encoder.start();
+  encoder.setRepeat(0);
+  encoder.setDelay(70);
+  encoder.setQuality(10);
+
+  // ANIMATION
+  for (let i = 0; i < 30; i++) {
+
+    // BACKGROUND
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0, 0, width, height);
+
+    // TITLE
+    ctx.fillStyle = "gold";
+    ctx.font = "bold 35px Arial";
+
+    ctx.fillText("🎰 SLOT", 120, 50);
+
+    // BOXES
+    ctx.fillStyle = "white";
+
+    ctx.fillRect(40, 90, 90, 90);
+    ctx.fillRect(155, 90, 90, 90);
+    ctx.fillRect(270, 90, 90, 90);
+
+    // SPIN EFFECT
+    const s1 =
+      i > 22
+        ? final1.symbol
+        : randomSymbol().symbol;
+
+    const s2 =
+      i > 25
+        ? final2.symbol
+        : randomSymbol().symbol;
+
+    const s3 =
+      i > 28
+        ? final3.symbol
+        : randomSymbol().symbol;
+
+    // SYMBOLS
+    ctx.fillStyle = "black";
+    ctx.font = "50px Arial";
+
+    ctx.fillText(s1, 60, 150);
+    ctx.fillText(s2, 175, 150);
+    ctx.fillText(s3, 290, 150);
+
+    encoder.addFrame(ctx);
+  }
+
+  encoder.finish();
+
+  // WIN CHECK
+  let winnings = 0;
+
+  if (
+    final1.symbol === final2.symbol &&
+    final2.symbol === final3.symbol
+  ) {
+
+    winnings = Math.floor(
+      bet * final1.multi
+    );
+
+    addCoins(userId, winnings);
+  }
+
+  // EMBED
+  const embed = new EmbedBuilder()
+    .setTitle("🎰 SLOT RESULT")
+    .setColor(
+      winnings > 0
+        ? "Gold"
+        : "Red"
+    )
+    .setDescription(
+      winnings > 0
+        ? `🎉 Gewinn: ${winnings} Coins`
+        : `❌ Verloren: ${bet} Coins`
+    )
+    .addFields({
+      name: "💰 Kontostand",
+      value: `${getCoins(userId)} Coins`
+    });
+
+  // SEND
+  const attachment = new AttachmentBuilder(path);
+
+  await interaction.editReply({
+    embeds: [embed],
+    files: [attachment]
+  });
+
+  // DELETE GIF
+  setTimeout(() => {
+
+    if (fs.existsSync(path)) {
+      fs.unlinkSync(path);
+    }
+
+  }, 5000);
+
+});
+
+// ================= LOGIN =================
+
+client.login(TOKEN);
