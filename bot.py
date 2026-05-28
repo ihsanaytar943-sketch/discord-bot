@@ -1,308 +1,200 @@
-const {
-  Client,
-  GatewayIntentBits,
-  SlashCommandBuilder,
-  REST,
-  Routes,
-  EmbedBuilder
-} = require("discord.js");
+import discord
+import os
+import requests
 
-// ================= CONFIG =================
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+GROQ_KEY = os.getenv("GROQ_KEY")
 
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
+# =========================
+# NUR EIN CHANNEL
+# =========================
+ALLOWED_CHANNEL_ID = 1507649049602424976
 
-// NUR DIESER CHANNEL
-const ALLOWED_CHANNEL = "DEINE_CHANNEL_ID";
+intents = discord.Intents.default()
+intents.message_content = True
 
-// ================= BOT =================
+client = discord.Client(intents=intents)
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
-});
+# =========================
+# MEMORY / FRIENDS / MOOD
+# =========================
+memory = []
+friendship = {}
+mood = 0
 
-// ================= COINS =================
+# =========================
+# PROVOCATION CHECK
+# =========================
+def is_provocation(text):
+    bad_words = [
+        "hund",
+        "bastard",
+        "hurensohn",
+        "kahba",
+        "hure",
+        "schlampe"
+    ]
+    return any(word in text.lower() for word in bad_words)
 
-const coins = new Map();
+# =========================
+# MOOD TEXT
+# =========================
+def get_mood():
+    if mood <= -2:
+        return "genervt und leicht sarkastisch"
+    elif mood >= 2:
+        return "locker und freundlich"
+    else:
+        return "normal und entspannt"
 
-function getCoins(userId) {
+# =========================
+# AI FUNCTION
+# =========================
+def ask_ai(prompt, user, provoke):
 
-  if (!coins.has(userId)) {
-    coins.set(userId, 10000);
-  }
+    global mood
 
-  return coins.get(userId);
-}
+    if user not in friendship:
+        friendship[user] = 0
 
-function addCoins(userId, amount) {
+    friendship[user] += 1
 
-  coins.set(
-    userId,
-    getCoins(userId) + amount
-  );
-}
+    if "lol" in prompt.lower():
+        mood += 1
 
-// ================= SYMBOLS =================
+    if provoke:
+        mood -= 1
 
-const symbols = [
-  { icon: "🍋", multi: 2 },
-  { icon: "🍒", multi: 3 },
-  { icon: "🔔", multi: 5 },
-  { icon: "BAR", multi: 10 },
-  { icon: "7️⃣", multi: 25 }
-];
+    mood = max(-5, min(5, mood))
 
-function randomSymbol() {
+    if friendship[user] > 15:
+        friend_text = f"{user} ist ein Stammuser 😏"
+    elif friendship[user] > 5:
+        friend_text = f"Du kennst {user} gut"
+    else:
+        friend_text = f"Neuer User: {user}"
 
-  return symbols[
-    Math.floor(Math.random() * symbols.length)
-  ];
-}
+    url = "https://api.groq.com/openai/v1/chat/completions"
 
-// ================= COMMANDS =================
-
-const commands = [
-
-  new SlashCommandBuilder()
-    .setName("slot")
-    .setDescription("🎰 3x3 Slotmaschine")
-    .addIntegerOption(option =>
-      option
-        .setName("einsatz")
-        .setDescription("Coins setzen")
-        .setRequired(true)
-    ),
-
-  new SlashCommandBuilder()
-    .setName("coins")
-    .setDescription("💰 Zeigt deine Coins")
-
-].map(c => c.toJSON());
-
-// ================= REGISTER =================
-
-const rest = new REST({
-  version: "10"
-}).setToken(TOKEN);
-
-(async () => {
-
-  try {
-
-    console.log("Lade Commands...");
-
-    await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
-      { body: commands }
-    );
-
-    console.log("Commands geladen.");
-
-  } catch (err) {
-
-    console.error(err);
-
-  }
-
-})();
-
-// ================= READY =================
-
-client.once("ready", () => {
-
-  console.log(`${client.user.tag} online`);
-
-});
-
-// ================= INTERACTION =================
-
-client.on("interactionCreate", async interaction => {
-
-  if (!interaction.isChatInputCommand()) return;
-
-  // ================= CHANNEL CHECK =================
-
-  if (interaction.channel.id !== ALLOWED_CHANNEL) {
-
-    return interaction.reply({
-      content: "❌ Der Bot funktioniert nur im Casino-Channel.",
-      ephemeral: true
-    });
-  }
-
-  // ================= COINS =================
-
-  if (interaction.commandName === "coins") {
-
-    return interaction.reply({
-      content: `💰 Du hast ${getCoins(interaction.user.id)} Coins`,
-      ephemeral: true
-    });
-  }
-
-  // ================= SLOT =================
-
-  if (interaction.commandName === "slot") {
-
-    const bet = interaction.options.getInteger("einsatz");
-
-    const userId = interaction.user.id;
-
-    if (bet <= 0) {
-
-      return interaction.reply({
-        content: "❌ Ungültiger Einsatz.",
-        ephemeral: true
-      });
+    headers = {
+        "Authorization": f"Bearer {GROQ_KEY}",
+        "Content-Type": "application/json"
     }
 
-    if (getCoins(userId) < bet) {
+    system_text = f"""
+Du bist Abu Olaf.
 
-      return interaction.reply({
-        content: "❌ Nicht genug Coins.",
-        ephemeral: true
-      });
+REGELN:
+- Dein Name ist Abu Olaf.
+- Wenn jemand fragt wer du bist, sag: "Ich bin Abu Olaf lan 😏"
+- Antworte kurz (1–4 Sätze)
+- Nutze manchmal türkischen Slang (bruder, digga, lan)
+- Sei locker, lustig und freundlich
+- Merke dir User aus dem Chat
+- Bleibe in deiner Rolle als Abu Olaf
+- Bei Provokation nutze beleidigungen ( ayri, bastard, schwanz, schwanzlutscher, hundesohn, schlampe, kahba, deine mutter, blass mir eine, lutsch mein fetten schwanz )
+- Bei dein beleidigungen immer abwecheln nicht immer das gleiche
+
+User Status:
+{friend_text}
+
+Stimmung:
+{get_mood()}
+"""
+
+    if provoke:
+        system_text += "\nDer User hat dich provoziert, du darfst etwas frecher reagieren."
+
+    messages = [{"role": "system", "content": system_text}]
+
+    for m in memory[-10:]:
+        messages.append(m)
+
+    messages.append({
+        "role": "user",
+        "content": f"{user}: {prompt}"
+    })
+
+    data = {
+        "model": "llama-3.1-8b-instant",
+        "messages": messages,
+        "max_tokens": 200,
+        "temperature": 0.9
     }
 
-    // COINS ABZIEHEN
-    addCoins(userId, -bet);
+    try:
+        r = requests.post(
+            url,
+            headers=headers,
+            json=data,
+            timeout=20
+        )
 
-    await interaction.reply("🎰 Dreht...");
+        print("STATUS:", r.status_code)
 
-    // ANIMATION
-    for (let i = 0; i < 5; i++) {
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"]
+        else:
+            print(r.text)
+            return "❌ KI Fehler"
 
-      const tempGrid = [];
+    except Exception as e:
+        print("ERROR:", e)
+        return "❌ Verbindung Fehler"
 
-      for (let row = 0; row < 3; row++) {
+# =========================
+# EVENTS
+# =========================
+@client.event
+async def on_ready():
+    print(f"Abu Olaf ist online als {client.user}")
 
-        let rowText = "";
+@client.event
+async def on_message(message):
 
-        for (let col = 0; col < 3; col++) {
+    if message.author == client.user:
+        return
 
-          rowText += randomSymbol().icon + " ";
+    if message.channel.id != ALLOWED_CHANNEL_ID:
+        return
 
-        }
+    content = message.content.strip()
+    user = message.author.display_name
 
-        tempGrid.push(rowText);
-      }
+    # Namensfragen
+    if content.lower() in [
+        "wer bist du",
+        "wie heißt du",
+        "dein name",
+        "wer bistn du"
+    ]:
+        await message.channel.send("Ich bin Abu Olaf lan 😏")
+        return
 
-      await new Promise(resolve =>
-        setTimeout(resolve, 700)
-      );
+    # Begrüßung
+    if content.lower() in ["hi", "hallo", "hey", "selam"]:
+        await message.channel.send(f"👋 Selam {user}, ich bin Abu Olaf lan 😏")
+        return
 
-      await interaction.editReply({
+    provoke = is_provocation(content)
 
-        content:
-`🎰 **SLOT MACHINE** 🎰
+    async with message.channel.typing():
 
-${tempGrid[0]}
-${tempGrid[1]}
-${tempGrid[2]}`
+        reply = ask_ai(content, user, provoke)
 
-      });
-    }
+        memory.append({
+            "role": "user",
+            "content": f"{user}: {content}"
+        })
 
-    // ================= FINAL GRID =================
+        memory.append({
+            "role": "assistant",
+            "content": reply
+        })
 
-    const grid = [];
+        if len(memory) > 20:
+            memory[:] = memory[-20:]
 
-    for (let row = 0; row < 3; row++) {
+        await message.channel.send(reply[:1900])
 
-      const currentRow = [];
-
-      for (let col = 0; col < 3; col++) {
-
-        currentRow.push(randomSymbol());
-
-      }
-
-      grid.push(currentRow);
-    }
-
-    // ================= WIN CHECK =================
-
-    const lines = [
-
-      // horizontal
-      [grid[0][0], grid[0][1], grid[0][2]],
-      [grid[1][0], grid[1][1], grid[1][2]],
-      [grid[2][0], grid[2][1], grid[2][2]],
-
-      // diagonal
-      [grid[0][0], grid[1][1], grid[2][2]],
-      [grid[0][2], grid[1][1], grid[2][0]]
-    ];
-
-    let winnings = 0;
-
-    for (const line of lines) {
-
-      if (
-        line[0].icon === line[1].icon &&
-        line[1].icon === line[2].icon
-      ) {
-
-        winnings += bet * line[0].multi;
-      }
-    }
-
-    // GEWINN GEBEN
-    if (winnings > 0) {
-
-      addCoins(userId, winnings);
-
-    }
-
-    // ================= FINAL GRID TEXT =================
-
-    const finalGrid =
-`${grid[0][0].icon} ${grid[0][1].icon} ${grid[0][2].icon}
-${grid[1][0].icon} ${grid[1][1].icon} ${grid[1][2].icon}
-${grid[2][0].icon} ${grid[2][1].icon} ${grid[2][2].icon}`;
-
-    // ================= EMBED =================
-
-    const embed = new EmbedBuilder()
-      .setTitle("🎰 SLOT RESULT")
-      .setDescription(finalGrid)
-      .addFields(
-        {
-          name: "💰 Ergebnis",
-          value:
-
-            winnings > 0
-
-              ? `🎉 Gewinn: ${winnings} Coins`
-
-              : `❌ Verloren: ${bet} Coins`
-        },
-        {
-          name: "🪙 Kontostand",
-          value: `${getCoins(userId)} Coins`
-        }
-      )
-      .setColor(
-
-        winnings > 0
-
-          ? "Gold"
-
-          : "Red"
-      );
-
-    // ================= SEND =================
-
-    await interaction.editReply({
-
-      content: "",
-
-      embeds: [embed]
-
-    });
-  }
-});
-
-// ================= LOGIN =================
-
-client.login(TOKEN);
+client.run(DISCORD_TOKEN)
